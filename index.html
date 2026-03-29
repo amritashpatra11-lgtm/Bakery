@@ -1,13 +1,1509 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Cakes & Bakes</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BallisticX - Advanced Projectile Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-purple: #b967ff;
+            --neon-blue: #4d79ff;
+            --neon-green: #00ff88;
+            --neon-red: #ff4757;
+            --neon-yellow: #ffd93d;
+            --bg-dark: #0a0a0f;
+            --bg-panel: rgba(20, 20, 35, 0.8);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Intro Animation */
+        #intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.8s ease;
+        }
+
+        #intro-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .intro-title {
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(0, 245, 255, 0.3);
+            animation: introGlow 2s ease-in-out;
+            letter-spacing: 0.3em;
+        }
+
+        .intro-subtitle {
+            font-size: clamp(0.8rem, 3vw, 1.2rem);
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            letter-spacing: 0.5em;
+            animation: fadeInUp 1s ease 0.5s both;
+        }
+
+        .intro-developer {
+            font-size: clamp(0.7rem, 2.5vw, 1rem);
+            color: var(--neon-cyan);
+            margin-top: 0.5rem;
+            letter-spacing: 0.2em;
+            animation: fadeInUp 1s ease 0.8s both;
+            text-shadow: 0 0 20px rgba(0, 245, 255, 0.5);
+        }
+
+        .intro-loader {
+            width: 200px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 2rem;
+            overflow: hidden;
+            animation: fadeInUp 1s ease 1s both;
+        }
+
+        .intro-loader-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+            border-radius: 3px;
+            animation: loadBar 2s ease-in-out forwards;
+        }
+
+        @keyframes introGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 245, 255, 0.5)); }
+            50% { filter: drop-shadow(0 0 40px rgba(185, 103, 255, 0.8)); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes loadBar {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        /* Main App Container */
+        #app-container {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #app-container.visible {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--bg-panel);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            flex-shrink: 0;
+        }
+
+        .app-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.1em;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 245, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        .icon-btn.active {
+            background: rgba(0, 245, 255, 0.3);
+            border-color: var(--neon-cyan);
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #0f0f1a 0%, #0a0a0f 100%);
+        }
+
+        #simulation-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .throw-instruction {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 245, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .throw-instruction.visible {
+            opacity: 1;
+        }
+
+        /* Live Data Panel */
+        .live-data-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1rem;
+            min-width: 180px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .live-data-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .live-data-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .live-data-item:last-child {
+            border-bottom: none;
+        }
+
+        .live-data-label {
+            color: var(--text-secondary);
+        }
+
+        .live-data-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* Graphs Panel */
+        .graphs-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 0.75rem;
+            display: none;
+        }
+
+        .graphs-panel.visible {
+            display: block;
+        }
+
+        .graph-container {
+            width: 200px;
+            height: 100px;
+            margin-bottom: 0.5rem;
+        }
+
+        .graph-container:last-child {
+            margin-bottom: 0;
+        }
+
+        .graph-title {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-glass);
+            padding: 1rem;
+            flex-shrink: 0;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .controls-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .controls-toggle {
+            background: none;
+            border: none;
+            color: var(--neon-cyan);
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .controls-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .controls-content {
+            transition: max-height 0.3s ease;
+            overflow: hidden;
+        }
+
+        .controls-content.collapsed {
+            max-height: 0 !important;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .control-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+            transition: transform 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .number-input {
+            width: 80px;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: rgba(0, 245, 255, 0.4);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+        }
+
+        .toggle-switch.active .toggle-knob {
+            transform: translateX(24px);
+        }
+
+        .projectile-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .projectile-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .projectile-btn.active {
+            border-color: var(--neon-cyan);
+            background: rgba(0, 245, 255, 0.2);
+            color: var(--neon-cyan);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 245, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-glass);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--neon-red);
+            border: 1px solid rgba(255, 71, 87, 0.5);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 71, 87, 0.3);
+        }
+
+        /* Speed Control */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .speed-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .speed-btn.active {
+            background: rgba(0, 245, 255, 0.3);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .live-data-panel {
+                min-width: 150px;
+                padding: 0.75rem;
+            }
+
+            .graphs-panel {
+                display: none !important;
+            }
+
+            .controls-panel {
+                padding: 0.75rem;
+            }
+
+            .header {
+                padding: 0.5rem;
+            }
+
+            .app-title {
+                font-size: 1rem;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 245, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 245, 255, 0.5);
+        }
+    </style>
 </head>
-
 <body>
+    <!-- Intro Animation -->
+    <div id="intro-overlay">
+        <div class="intro-title">BALLISTICX</div>
+        <div class="intro-subtitle">ADVANCED PROJECTILE SIMULATOR</div>
+        <div class="intro-developer">Developed by AMRITASH</div>
+        <div class="intro-loader">
+            <div class="intro-loader-bar"></div>
+        </div>
+    </div>
 
-<h1>Welcome to Cakes & Bakes</h1>
-<p>My bakery website is starting!</p>
+    <!-- Main App -->
+    <div id="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="app-title">BALLISTICX</div>
+            <div class="header-controls">
+                <button class="icon-btn" id="toggle-graphs" title="Toggle Graphs">📊</button>
+                <button class="icon-btn" id="toggle-sound" title="Toggle Sound">🔊</button>
+                <button class="icon-btn" id="toggle-throw-mode" title="Throw Mode">✋</button>
+            </div>
+        </div>
 
+        <!-- Canvas Container -->
+        <div class="canvas-container" id="canvas-container">
+            <canvas id="simulation-canvas"></canvas>
+            <div class="throw-instruction" id="throw-instruction">
+                Drag to throw • Release to launch
+            </div>
+
+            <!-- Live Data Panel -->
+            <div class="live-data-panel">
+                <div class="live-data-title">Live Metrics</div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Time</span>
+                    <span class="live-data-value" id="live-time">0.00s</span>
+                </div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Height</span>
+                    <span class="live-data-value" id="live-height">0.00m</span>
+                </div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Range</span>
+                    <span class="live-data-value" id="live-range">0.00m</span>
+                </div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Velocity</span>
+                    <span class="live-data-value" id="live-velocity">0.00 m/s</span>
+                </div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Max Height</span>
+                    <span class="live-data-value" id="live-max-height">0.00m</span>
+                </div>
+                <div class="live-data-item">
+                    <span class="live-data-label">Total Range</span>
+                    <span class="live-data-value" id="live-total-range">0.00m</span>
+                </div>
+            </div>
+
+            <!-- Graphs Panel -->
+            <div class="graphs-panel" id="graphs-panel">
+                <div class="graph-container">
+                    <div class="graph-title">Height vs Time</div>
+                    <canvas class="graph-canvas" id="height-graph"></canvas>
+                </div>
+                <div class="graph-container">
+                    <div class="graph-title">Velocity vs Time</div>
+                    <canvas class="graph-canvas" id="velocity-graph"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <div class="controls-header">
+                <div class="controls-title">Simulation Controls</div>
+                <button class="controls-toggle" id="controls-toggle">▼</button>
+            </div>
+            <div class="controls-content" id="controls-content">
+                <!-- Projectile Selection -->
+                <div class="projectile-selector">
+                    <button class="projectile-btn active" data-id="1" style="border-color: var(--neon-cyan);">P1</button>
+                    <button class="projectile-btn" data-id="2" style="border-color: var(--neon-purple);">P2</button>
+                    <button class="projectile-btn" data-id="3" style="border-color: var(--neon-green);">P3</button>
+                </div>
+
+                <!-- Velocity Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Initial Velocity (m/s)</span>
+                        <span class="control-value" id="velocity-value">50.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="velocity-slider" min="5" max="200" value="50" step="1">
+                    </div>
+                </div>
+
+                <!-- Angle Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Launch Angle (°)</span>
+                        <span class="control-value" id="angle-value">45</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="angle-slider" min="0" max="90" value="45" step="1">
+                    </div>
+                </div>
+
+                <!-- Height Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Launch Height (m)</span>
+                        <span class="control-value" id="height-value">0.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="height-slider" min="0" max="50" value="0" step="1">
+                    </div>
+                </div>
+
+                <!-- Gravity Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Gravity (m/s²)</span>
+                        <span class="control-value" id="gravity-value">9.81</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="gravity-slider" min="1" max="20" value="9.81" step="0.1">
+                    </div>
+                </div>
+
+                <!-- Toggles -->
+                <div class="control-group">
+                    <div class="toggle-container">
+                        <div class="toggle-switch" id="air-resistance-toggle">
+                            <div class="toggle-knob"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Air Resistance</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="toggle-container">
+                        <div class="toggle-switch active" id="bouncing-toggle">
+                            <div class="toggle-knob"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Bouncing</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="toggle-container">
+                        <div class="toggle-switch active" id="trails-toggle">
+                            <div class="toggle-knob"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Trails</span>
+                    </div>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Simulation Speed</span>
+                        <span class="control-value" id="speed-value">1.0x</span>
+                    </div>
+                    <div class="speed-control">
+                        <button class="speed-btn" data-speed="0.25">0.25x</button>
+                        <button class="speed-btn" data-speed="0.5">0.5x</button>
+                        <button class="speed-btn active" data-speed="1">1x</button>
+                        <button class="speed-btn" data-speed="1.5">1.5x</button>
+                        <button class="speed-btn" data-speed="2">2x</button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="action-btn btn-primary" id="launch-btn">🚀 Launch</button>
+                    <button class="action-btn btn-secondary" id="pause-btn">⏸ Pause</button>
+                    <button class="action-btn btn-danger" id="reset-btn">🔄 Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // BALLISTICX - Advanced Projectile Simulator
+        // Developed by AMRITASH
+        // ============================================
+
+        // ============================================
+        // INTRO ANIMATION
+        // ============================================
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('intro-overlay').classList.add('fade-out');
+                document.getElementById('app-container').classList.add('visible');
+                setTimeout(() => {
+                    document.getElementById('intro-overlay').style.display = 'none';
+                }, 800);
+            }, 2200);
+        });
+
+        // ============================================
+        // PHYSICS ENGINE
+        // ============================================
+        class PhysicsEngine {
+            constructor() {
+                this.projectiles = [];
+                this.maxProjectiles = 3;
+                this.colors = ['#00f5ff', '#b967ff', '#00ff88'];
+                this.names = ['P1', 'P2', 'P3'];
+                this.time = 0;
+                this.isPaused = false;
+                this.simulationSpeed = 1.0;
+                this.g = 9.81; // Gravity
+                this.airResistance = false;
+                this.dragCoefficient = 0.01;
+                this.bouncing = true;
+                this.restitution = 0.7; // Energy loss on bounce
+                this.trails = true;
+                this.maxTrailPoints = 500;
+            }
+
+            createProjectile(x, y, velocity, angle, colorIndex = 0) {
+                if (this.projectiles.length >= this.maxProjectiles) {
+                    this.projectiles.shift(); // Remove oldest
+                }
+
+                const rad = angle * Math.PI / 180;
+                return {
+                    id: colorIndex,
+                    x: x,
+                    y: y,
+                    vx: velocity * Math.cos(rad),
+                    vy: velocity * Math.sin(rad),
+                    initialVelocity: velocity,
+                    initialAngle: angle,
+                    color: this.colors[colorIndex],
+                    name: this.names[colorIndex],
+                    trail: [],
+                    maxHeight: y,
+                    flightTime: 0,
+                    landed: false,
+                    bounceCount: 0
+                };
+            }
+
+            update(dt) {
+                if (this.isPaused) return;
+
+                const actualDt = dt * this.simulationSpeed;
+
+                this.projectiles.forEach(p => {
+                    if (p.landed && !this.bouncing) return;
+
+                    // Store trail position
+                    if (this.trails) {
+                        p.trail.push({ x: p.x, y: p.y });
+                        if (p.trail.length > this.maxTrailPoints) {
+                            p.trail.shift();
+                        }
+                    }
+
+                    // Air resistance
+                    if (this.airResistance) {
+                        const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                        const dragX = -this.dragCoefficient * p.vx * speed;
+                        const dragY = -this.dragCoefficient * p.vy * speed;
+                        p.vx += dragX * actualDt;
+                        p.vy += dragY * actualDt;
+                    }
+
+                    // Apply gravity
+                    p.vy -= this.g * actualDt;
+
+                    // Update position
+                    p.x += p.vx * actualDt;
+                    p.y += p.vy * actualDt;
+
+                    // Update flight time
+                    p.flightTime += actualDt;
+
+                    // Track max height
+                    if (p.y > p.maxHeight) {
+                        p.maxHeight = p.y;
+                    }
+
+                    // Ground collision with bounce
+                    if (p.y <= 0) {
+                        p.y = 0;
+                        if (this.bouncing && Math.abs(p.vy) > 0.5) {
+                            p.vy = -p.vy * this.restitution;
+                            p.vx *= 0.95; // Ground friction
+                            p.bounceCount++;
+                        } else {
+                            p.vy = 0;
+                            p.vx = 0;
+                            p.landed = true;
+                        }
+                    }
+
+                    // Wall collision (right boundary)
+                    if (p.x > 1000) {
+                        p.vx = -p.vx * 0.8;
+                        p.x = 1000;
+                    }
+                });
+
+                this.time += actualDt;
+            }
+
+            reset() {
+                this.projectiles = [];
+                this.time = 0;
+            }
+
+            getActiveProjectile() {
+                return this.projectiles[this.projectiles.length - 1] || null;
+            }
+        }
+
+        // ============================================
+        // GRAPH RENDERER
+        // ============================================
+        class GraphRenderer {
+            constructor() {
+                this.heightGraph = document.getElementById('height-graph');
+                this.velocityGraph = document.getElementById('velocity-graph');
+                this.heightCtx = this.heightGraph.getContext('2d');
+                this.velocityCtx = this.velocityGraph.getContext('2d');
+                this.maxDataPoints = 200;
+                this.heightData = [];
+                this.velocityData = [];
+                this.timeData = [];
+            }
+
+            updateData(projectile) {
+                if (!projectile) return;
+
+                const currentHeight = projectile.y;
+                const currentVelocity = Math.sqrt(projectile.vx * projectile.vx + projectile.vy * projectile.vy);
+
+                this.heightData.push(currentHeight);
+                this.velocityData.push(currentVelocity);
+                this.timeData.push(projectile.flightTime);
+
+                if (this.heightData.length > this.maxDataPoints) {
+                    this.heightData.shift();
+                    this.velocityData.shift();
+                    this.timeData.shift();
+                }
+            }
+
+            draw() {
+                this.drawGraph(this.heightCtx, this.heightData, '#00f5ff', 'Height (m)');
+                this.drawGraph(this.velocityCtx, this.velocityData, '#b967ff', 'Velocity (m/s)');
+            }
+
+            drawGraph(ctx, data, color, label) {
+                const width = ctx.canvas.width = ctx.canvas.offsetWidth * 2;
+                const height = ctx.canvas.height = ctx.canvas.offsetHeight * 2;
+                ctx.scale(2, 2);
+
+                ctx.clearRect(0, 0, width, height);
+
+                if (data.length < 2) return;
+
+                const padding = 20;
+                const graphWidth = width - padding * 2;
+                const graphHeight = height - padding * 2;
+
+                // Find max value
+                const maxValue = Math.max(...data, 1);
+
+                // Draw grid
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= 4; i++) {
+                    const y = padding + (graphHeight / 4) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(width - padding, y);
+                    ctx.stroke();
+                }
+
+                // Draw data line
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+
+                data.forEach((value, i) => {
+                    const x = padding + (graphWidth / (this.maxDataPoints - 1)) * i;
+                    const y = padding + graphHeight - (value / maxValue) * graphHeight;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+
+                ctx.stroke();
+
+                // Draw glow effect
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.3;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            clear() {
+                this.heightData = [];
+                this.velocityData = [];
+                this.timeData = [];
+            }
+        }
+
+        // ============================================
+        // SIMULATION CONTROLLER
+        // ============================================
+        class SimulationController {
+            constructor() {
+                this.physics = new PhysicsEngine();
+                this.graphs = new GraphRenderer();
+                this.canvas = document.getElementById('simulation-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('canvas-container');
+                this.selectedProjectileId = 0;
+                this.isThrowMode = false;
+                this.isDragging = false;
+                this.dragStart = { x: 0, y: 0 };
+                this.dragCurrent = { x: 0, y: 0 };
+                this.soundEnabled = true;
+                this.animationId = null;
+                this.lastTime = 0;
+                this.scale = 1;
+                this.offsetX = 0;
+                this.offsetY = 0;
+
+                this.init();
+            }
+
+            init() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                this.setupControls();
+                this.setupCanvasEvents();
+                this.start();
+            }
+
+            resizeCanvas() {
+                const rect = this.container.getBoundingClientRect();
+                this.canvas.width = rect.width * 2;
+                this.canvas.height = rect.height * 2;
+                this.ctx.scale(2, 2);
+
+                // Calculate scale for world coordinates
+                this.scale = Math.min(rect.width / 1000, rect.height / 500);
+                this.offsetX = 50;
+                this.offsetY = rect.height - 50;
+            }
+
+            worldToScreen(x, y) {
+                return {
+                    x: this.offsetX + x * this.scale,
+                    y: this.offsetY - y * this.scale
+                };
+            }
+
+            screenToWorld(x, y) {
+                return {
+                    x: (x - this.offsetX) / this.scale,
+                    y: (this.offsetY - y) / this.scale
+                };
+            }
+
+            setupControls() {
+                // Sliders
+                const sliders = {
+                    velocity: { slider: 'velocity-slider', value: 'velocity-value', param: 'velocity', min: 5, max: 200 },
+                    angle: { slider: 'angle-slider', value: 'angle-value', param: 'angle', min: 0, max: 90 },
+                    height: { slider: 'height-slider', value: 'height-value', param: 'height', min: 0, max: 50 },
+                    gravity: { slider: 'gravity-slider', value: 'gravity-value', param: 'gravity', min: 1, max: 20 }
+                };
+
+                Object.entries(sliders).forEach(([key, config]) => {
+                    const slider = document.getElementById(config.slider);
+                    const value = document.getElementById(config.value);
+
+                    slider.addEventListener('input', (e) => {
+                        value.textContent = e.target.value;
+                    });
+                });
+
+                // Toggles
+                const toggles = {
+                    'air-resistance-toggle': () => { this.physics.airResistance = !this.physics.airResistance; },
+                    'bouncing-toggle': () => { this.physics.bouncing = !this.physics.bouncing; },
+                    'trails-toggle': () => { this.physics.trails = !this.physics.trails; }
+                };
+
+                Object.entries(toggles).forEach(([id, action]) => {
+                    document.getElementById(id).addEventListener('click', (e) => {
+                        e.target.classList.toggle('active');
+                        action();
+                    });
+                });
+
+                // Speed buttons
+                document.querySelectorAll('.speed-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.physics.simulationSpeed = parseFloat(e.target.dataset.speed);
+                        document.getElementById('speed-value').textContent = e.target.dataset.speed + 'x';
+                    });
+                });
+
+                // Projectile selection
+                document.querySelectorAll('.projectile-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.projectile-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.selectedProjectileId = parseInt(e.target.dataset.id) - 1;
+                    });
+                });
+
+                // Action buttons
+                document.getElementById('launch-btn').addEventListener('click', () => this.launchProjectile());
+                document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
+                document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+
+                // Header controls
+                document.getElementById('toggle-graphs').addEventListener('click', () => {
+                    document.getElementById('graphs-panel').classList.toggle('visible');
+                });
+
+                document.getElementById('toggle-sound').addEventListener('click', (e) => {
+                    this.soundEnabled = !this.soundEnabled;
+                    e.target.classList.toggle('active');
+                    e.target.textContent = this.soundEnabled ? '🔊' : '🔇';
+                });
+
+                document.getElementById('toggle-throw-mode').addEventListener('click', (e) => {
+                    this.isThrowMode = !this.isThrowMode;
+                    e.target.classList.toggle('active');
+                    document.getElementById('throw-instruction').classList.toggle('visible', this.isThrowMode);
+                });
+
+                // Controls toggle
+                document.getElementById('controls-toggle').addEventListener('click', (e) => {
+                    e.target.classList.toggle('collapsed');
+                    document.getElementById('controls-content').classList.toggle('collapsed');
+                });
+            }
+
+            setupCanvasEvents() {
+                const handleStart = (x, y) => {
+                    if (!this.isThrowMode) return;
+                    this.isDragging = true;
+                    this.dragStart = { x, y };
+                    this.dragCurrent = { x, y };
+                };
+
+                const handleMove = (x, y) => {
+                    if (!this.isDragging) return;
+                    this.dragCurrent = { x, y };
+                };
+
+                const handleEnd = () => {
+                    if (!this.isDragging) return;
+                    this.isDragging = false;
+
+                    const dx = this.dragStart.x - this.dragCurrent.x;
+                    const dy = this.dragStart.y - this.dragCurrent.y;
+                    const velocity = Math.sqrt(dx * dx + dy * dy) * 0.5;
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                    if (velocity > 10) {
+                        this.launchFromThrow(velocity, Math.max(0, Math.min(90, angle)));
+                    }
+                };
+
+                // Mouse events
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    handleStart(e.clientX - rect.left, e.clientY - rect.top);
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    handleMove(e.clientX - rect.left, e.clientY - rect.top);
+                });
+
+                this.canvas.addEventListener('mouseup', handleEnd);
+                this.canvas.addEventListener('mouseleave', handleEnd);
+
+                // Touch events
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    handleStart(touch.clientX - rect.left, touch.clientY - rect.top);
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    handleMove(touch.clientX - rect.left, touch.clientY - rect.top);
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    handleEnd();
+                });
+            }
+
+            launchProjectile() {
+                const velocity = parseFloat(document.getElementById('velocity-slider').value);
+                const angle = parseFloat(document.getElementById('angle-slider').value);
+                const height = parseFloat(document.getElementById('height-slider').value);
+
+                const worldPos = this.screenToWorld(this.offsetX, this.offsetY);
+                const projectile = this.physics.createProjectile(
+                    worldPos.x,
+                    worldPos.y + height,
+                    velocity,
+                    angle,
+                    this.selectedProjectileId
+                );
+
+                this.physics.projectiles.push(projectile);
+                this.graphs.clear();
+
+                // Play sound
+                if (this.soundEnabled) {
+                    this.playLaunchSound();
+                }
+            }
+
+            launchFromThrow(velocity, angle) {
+                const worldPos = this.screenToWorld(this.dragStart.x, this.dragStart.y);
+                const projectile = this.physics.createProjectile(
+                    worldPos.x,
+                    worldPos.y,
+                    velocity,
+                    angle,
+                    this.selectedProjectileId
+                );
+
+                this.physics.projectiles.push(projectile);
+                this.graphs.clear();
+
+                if (this.soundEnabled) {
+                    this.playLaunchSound();
+                }
+            }
+
+            togglePause() {
+                this.physics.isPaused = !this.physics.isPaused;
+                const btn = document.getElementById('pause-btn');
+                btn.textContent = this.physics.isPaused ? '▶ Resume' : '⏸ Pause';
+            }
+
+            reset() {
+                this.physics.reset();
+                this.graphs.clear();
+                document.getElementById('pause-btn').textContent = '⏸ Pause';
+                this.physics.isPaused = false;
+            }
+
+            playLaunchSound() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+
+                    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
+
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                } catch (e) {
+                    // Audio not supported
+                }
+            }
+
+            drawGrid() {
+                const width = this.canvas.width / 2;
+                const height = this.canvas.height / 2;
+
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.lineWidth = 1;
+
+                // Vertical lines
+                for (let x = 0; x <= 1000; x += 50) {
+                    const screenPos = this.worldToScreen(x, 0);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screenPos.x, 0);
+                    this.ctx.lineTo(screenPos.x, height);
+                    this.ctx.stroke();
+                }
+
+                // Horizontal lines
+                for (let y = 0; y <= 500; y += 50) {
+                    const screenPos = this.worldToScreen(0, y);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, screenPos.y);
+                    this.ctx.lineTo(width, screenPos.y);
+                    this.ctx.stroke();
+                }
+
+                // Ground line
+                this.ctx.strokeStyle = 'rgba(0, 245, 255, 0.3)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.offsetX, this.offsetY);
+                this.ctx.lineTo(width, this.offsetY);
+                this.ctx.stroke();
+            }
+
+            drawProjectile(p) {
+                const pos = this.worldToScreen(p.x, p.y);
+
+                // Draw trail
+                if (this.physics.trails && p.trail.length > 1) {
+                    this.ctx.beginPath();
+                    this.ctx.strokeStyle = p.color;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.globalAlpha = 0.5;
+
+                    p.trail.forEach((point, i) => {
+                        const screenPos = this.worldToScreen(point.x, point.y);
+                        if (i === 0) {
+                            this.ctx.moveTo(screenPos.x, screenPos.y);
+                        } else {
+                            this.ctx.lineTo(screenPos.x, screenPos.y);
+                        }
+                    });
+
+                    this.ctx.stroke();
+                    this.ctx.globalAlpha = 1;
+                }
+
+                // Draw projectile
+                this.ctx.beginPath();
+                this.ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+                this.ctx.fillStyle = p.color;
+                this.ctx.fill();
+
+                // Glow effect
+                this.ctx.beginPath();
+                this.ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
+                this.ctx.fillStyle = p.color + '40';
+                this.ctx.fill();
+
+                // Label
+                this.ctx.fillStyle = p.color;
+                this.ctx.font = 'bold 10px Arial';
+                this.ctx.fillText(p.name, pos.x + 12, pos.y - 12);
+            }
+
+            drawThrowLine() {
+                if (!this.isDragging) return;
+
+                const startPos = this.worldToScreen(this.dragStart.x, this.dragStart.y);
+                const endPos = this.worldToScreen(this.dragCurrent.x, this.dragCurrent.y);
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(startPos.x, startPos.y);
+                this.ctx.lineTo(endPos.x, endPos.y);
+                this.ctx.strokeStyle = 'rgba(0, 245, 255, 0.6)';
+                this.ctx.lineWidth = 3;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+
+                // Draw arrow head
+                const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+                const arrowLength = 15;
+                const arrowX = endPos.x;
+                const arrowY = endPos.y;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(arrowX, arrowY);
+                this.ctx.lineTo(
+                    arrowX - arrowLength * Math.cos(angle - Math.PI / 6),
+                    arrowY - arrowLength * Math.sin(angle - Math.PI / 6)
+                );
+                this.ctx.moveTo(arrowX, arrowY);
+                this.ctx.lineTo(
+                    arrowX - arrowLength * Math.cos(angle + Math.PI / 6),
+                    arrowY - arrowLength * Math.sin(angle + Math.PI / 6)
+                );
+                this.ctx.stroke();
+            }
+
+            updateLiveData() {
+                const p = this.physics.getActiveProjectile();
+
+                if (p) {
+                    document.getElementById('live-time').textContent = p.flightTime.toFixed(2) + 's';
+                    document.getElementById('live-height').textContent = p.y.toFixed(2) + 'm';
+                    document.getElementById('live-range').textContent = p.x.toFixed(2) + 'm';
+
+                    const velocity = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                    document.getElementById('live-velocity').textContent = velocity.toFixed(2) + ' m/s';
+                    document.getElementById('live-max-height').textContent = p.maxHeight.toFixed(2) + 'm';
+                    document.getElementById('live-total-range').textContent = p.x.toFixed(2) + 'm';
+
+                    // Update graphs
+                    this.graphs.updateData(p);
+                } else {
+                    document.getElementById('live-time').textContent = '0.00s';
+                    document.getElementById('live-height').textContent = '0.00m';
+                    document.getElementById('live-range').textContent = '0.00m';
+                    document.getElementById('live-velocity').textContent = '0.00 m/s';
+                    document.getElementById('live-max-height').textContent = '0.00m';
+                    document.getElementById('live-total-range').textContent = '0.00m';
+                }
+            }
+
+            render() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width / 2, this.canvas.height / 2);
+
+                // Draw grid
+                this.drawGrid();
+
+                // Draw throw line
+                this.drawThrowLine();
+
+                // Draw projectiles
+                this.physics.projectiles.forEach(p => this.drawProjectile(p));
+
+                // Draw graphs
+                this.graphs.draw();
+
+                // Update live data
+                this.updateLiveData();
+            }
+
+            start() {
+                const loop = (timestamp) => {
+                    const dt = (timestamp - this.lastTime) / 1000;
+                    this.lastTime = timestamp;
+
+                    // Cap dt to prevent huge jumps
+                    const cappedDt = Math.min(dt, 0.1);
+
+                    this.physics.update(cappedDt);
+                    this.render();
+
+                    this.animationId = requestAnimationFrame(loop);
+                };
+
+                this.lastTime = performance.now();
+                this.animationId = requestAnimationFrame(loop);
+            }
+
+            stop() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        let simulation;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            simulation = new SimulationController();
+        });
+
+        // Prevent zoom on double tap
+        document.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
 </body>
 </html>
